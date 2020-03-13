@@ -8,10 +8,8 @@ This project was commissioned to facilitate research into Title 9 compliance;
 as it has no options or command-line args it can accept, there isn't much need
 for a README. </p>
 
-### DISCLAIMER: As this project was done as a pet project early in my git-familiarity
-### and without any other developers, I opted not to use git to track my updates/branches
-##### Therefore, given the lack of visible changes, I will instead use this space
-##### to document my development timeline, progression, and skills learned.
+### DISCLAIMER: As this project was done as a pet project early in my git-familiarity and without any other developers, I opted not to use git to track my updates/branches
+##### Therefore, given the lack of visible changes, I will instead use this space to document my development timeline, progression, and skills learned.
 
 <p>The original task before me was to scrape certain data from job listings on
 particular job boards, for use in later analysis. I began by modularizing each
@@ -50,6 +48,7 @@ In particular:</li>
 While logged in, more results beyond the first 25 are accessed through pagination (sort of)
 If not logged in, a "see more jobs" button is presented in leiu of the page selector,
 which, when clicked, expands the maximum list size.</li>
+</ul>
 
 The net effect of these is that,
 
