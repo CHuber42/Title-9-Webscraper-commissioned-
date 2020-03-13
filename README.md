@@ -8,7 +8,7 @@ This project was commissioned to facilitate research into Title 9 compliance;
 as it has no options or command-line args it can accept, there isn't much need
 for a README. </p>
 
-### DISCLAIMER: As this project was done as a pet project early in my git-familiarity and without any other developers, I opted not to use git to track my updates/branches
+### DISCLAIMER: As this project was done as a pet project early in my git-familiarity and without any other developers, I opted not to use git to track my updates/branches.
 ##### Therefore, given the lack of visible changes, I will instead use this space to document my development timeline, progression, and skills learned.
 
 <p>The original task before me was to scrape certain data from job listings on
@@ -58,6 +58,7 @@ The net effect of these is that,
 <li>Locating the "see more listings" button, and clicking it, which in turn led to:</li>
 <li>**many** hours of not understanding why I was not capturing >25 elements. Final result:</li>
 <li>Installing a time.sleep() period to ensure the HTML is re-captured post-JS update.</li>
+</ol>
 
 <p>Stage 3 then ended with iterating each job entry, extracting its href, and adding those
 to a results list for later utilization.</p>
