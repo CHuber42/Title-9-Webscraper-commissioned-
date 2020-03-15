@@ -4,6 +4,7 @@ from selenium.webdriver.chrome.options import Options
 import os
 import time
 from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import ElementClickInterceptedException
 
 ###INITIALIZE GLOBAL HOLDERS:
 ### results: holds all entries which possess the "item-details-link" trait (INCLUDES DUPLICATES)
@@ -20,6 +21,23 @@ chrome_options = Options()
 chrome_options.add_argument("--headless")
 chrome_options.add_argument("--window-size=1920x1080")
 chrome_driver = "C:/bin/phantomjs/bin/chromedriver.exe"
+
+##################################################################################
+##################################################################################
+##################################################################################
+def confirm_load(flagging_string, driver):
+    success = False
+    while success == False:
+        try:
+            exec(flagging_string)
+            success = True
+        except NoSuchElementException:
+            time.sleep(1)
+            pass
+        except ElementClickInterceptedException:
+            time.sleep(1)
+            pass
+
 
 ##########################################################################################
 ##########################################################################################
@@ -39,16 +57,11 @@ def gj_initialize():
 # flag = False
 # While Flag = False : Grab element
 # If element succeeded, Flag = True; else wait and re-try.
-    page_loaded = False
-    while page_loaded == False:
-        try:
-            parent_of_pages = driver.find_element_by_class_name('pagination')
-            children_of_pages = parent_of_pages.find_elements_by_tag_name('a')
-            page_loaded = True
-        except NoSuchElementException:
-            print("Page Not Loaded Yet.")
-            time.sleep(2)
-            pass
+
+
+    confirm_load("test = driver.find_element_by_class_name('pagination')", driver)
+    parent_of_pages = driver.find_element_by_class_name('pagination')
+    children_of_pages = parent_of_pages.find_elements_by_tag_name('a')
 
 # Find the number of pages returned by the job search
     number_of_pages = 1                             #Front Page doesn't get detected, so initiate with a value of 1
@@ -80,31 +93,13 @@ def gj_grab_pages(number_of_pages):
         myurl = str("https://www.governmentjobs.com/careers/piercecountywa?page={}").format(m)
         driver.get(myurl)
 
-        list_found = False                          # This follows my standard structure for web-page-verification
-        while list_found == False :                 # Prior to scraping (see line 41)
-            try:
-                elements_of_interest = driver.find_elements_by_tag_name('tr')   # <tr> is best tag for finding the sub-data we want.
-                if len(elements_of_interest) > 1:
-                    list_found = True
-            except NoSuchElementException:
-                print("GJ List Element Not Yet Found. Waiting...")
-                time.sleep(2)
-                pass
-
-
+        confirm_load("test = driver.find_elements_by_tag_name('tr')", driver)
+        elements_of_interest = driver.find_elements_by_tag_name('tr')   # <tr> is best tag for finding the sub-data we want.
         elements_of_interest.pop(0)                 #The First entry (line with <tr> tag) is the header - Remove it
 
-
-        #  Extract Href into list, extract "Job Title":"Posted Date" into Dict
-        governmentjobs_results = []
-        governmentjobs_posted_dict = {}
-        for element in elements_of_interest:
-            governmentjobs_posted_dict[element.find_element_by_class_name("item-details-link").text] = element.find_element_by_class_name("job-table-posted").text
-            governmentjobs_results.append(element.find_element_by_class_name("item-details-link").get_attribute('href'))
-
-
-
         print("Number of posts found: ", len(elements_of_interest))     # Quick report to verify the loop succeeded in locating results
+
+        gj_extract_meaningful_information(elements_of_interest, driver)
 
         driver.close()                              # As before, we are done with the webpage - close it in case
                                                     # of "crashing open" in subsequent steps
@@ -112,7 +107,7 @@ def gj_grab_pages(number_of_pages):
         # Hand Hrefs list and titles:posted_date dictionary to results processor
         # Do note these results are "pushed" once per page. This is important for some logic-flow
         # That happens in other places.
-        gj_extract_meaningful_information(governmentjobs_results, governmentjobs_posted_dict)
+
 
 ########################################################################
 
@@ -123,33 +118,46 @@ def gj_grab_pages(number_of_pages):
 ### page, so we have to pass it in from the board where we stripped the href values
 ### - Thus the posted_dict.
 
-def gj_extract_meaningful_information(result, posted_dict):
+def gj_extract_meaningful_information(result, driver):
+    try:
+        driver.find_element_by_xpath("/html/body/div[4]/div[1]/div[2]/div/button").click()
+    except NoSuchElementException:
+        pass
+
 
     for i in result :
-        driver = webdriver.Chrome(chrome_options=chrome_options, executable_path=chrome_driver)
-        driver.get(i)
-        results_loaded = False
-        while results_loaded == False:
-            try :
-                pay = driver.find_element_by_xpath("/html/body/div[4]/div[1]/div[1]/div/div/div/div/div[2]/div[1]/div/div[1]/div[1]/div[1]/div[1]/div[2]/div").text
-                job_type = driver.find_element_by_xpath("/html/body/div[4]/div[1]/div[1]/div/div/div/div/div[2]/div[1]/div/div[1]/div[1]/div[2]/div[1]/div[2]/div").text
-                Job_ID = driver.find_element_by_xpath("/html/body/div[4]/div[1]/div[1]/div/div/div/div/div[2]/div[1]/div/div[1]/div[1]/div[3]/div/div[2]/div").text
-                location = driver.find_element_by_xpath("/html/body/div[4]/div[1]/div[1]/div/div/div/div/div[2]/div[1]/div/div[1]/div[1]/div[1]/div[2]/div[2]/div").text
-                department = driver.find_element_by_xpath("/html/body/div[4]/div[1]/div[1]/div/div/div/div/div[2]/div[1]/div/div[1]/div[1]/div[2]/div[2]/div[2]/div").text
-                job_title = driver.find_element_by_xpath('/html/body/div[4]/div[1]/div[1]/div/div/div/div/div[1]/div/div[1]/h2').text
-                posted_date = posted_dict.get(job_title)
-                results_loaded = True
-            except NoSuchElementException :
-                print("No such element, sleep for 2")
-                time.sleep(2)
+
+        while True:
+            try:
+                i.find_element_by_class_name("item-details-link").click()
+                break
+            except ElementClickInterceptedException:
+                time.sleep(1)
                 pass
 
+        pay = i.find_element_by_class_name("job-table-salary").text
+        job_title = i.find_element_by_class_name("item-details-link").text
+        Job_ID = i.find_element_by_class_name("job-table-title").get_attribute("data-job-id")
+        job_href = i.find_element_by_class_name("item-details-link").get_attribute("href")
+        pay = i.find_element_by_class_name("job-table-salary").text
+        job_type = i.find_element_by_class_name("job-table-type")
+        department = i.find_element_by_class_name("job-table-department").text
+        posted_date = i.find_element_by_class_name("job-table-posted").text
+        href = i.find_element_by_class_name("item-details-link").get_attribute('href')
+
+        confirm_load("test = driver.find_element_by_xpath('/html/body/div[8]/div/div[1]/div[2]/div/div[1]/div[1]/div[1]/div[2]/div[2]/div').text", driver)
+
+        location = driver.find_element_by_xpath("/html/body/div[8]/div/div[1]/div[2]/div/div[1]/div[1]/div[1]/div[2]/div[2]/div").text
+        job_number = driver.find_element_by_xpath("/html/body/div[8]/div/div[1]/div[2]/div/div[1]/div[1]/div[3]/div/div[2]/div").text
+
+        print(job_title, Job_ID, job_href, pay, department, posted_date, location, Job_number)
+
+        confirm_load("driver.find_element_by_xpath('/html/body/div[8]/div/div[1]/div[1]/button').click()", driver)
 
 
-        driver.close()
-
-        conclusion_list = ("Title: ", job_title, "  ID: ", Job_ID, "  Pay: ", pay, "  Location: ", location, "  Department: ", department,
-                "  Job Type: ", job_type, "  Posted Date: ", posted_date,  "  Href: ", i, "\n")
+         conclusion_list = ("Title: ", job_title, "  ID: ", Job_ID, "  Job Numer: ", job_number, "  Pay: ", pay,
+                            "  Location: ", location, "  Department: ", department, "  Job Type: ", job_type,
+                            "  Posted Date: ", posted_date,  "  Href: ", href, "\n")
         conclusion_string = str.join('', conclusion_list)
         log_file.write(conclusion_string)
 
@@ -172,32 +180,23 @@ def get_linkedin ():
     myurl = "https://www.linkedin.com/jobs/search?locationId=OTHERS.worldwide&f_C=231967&trk=job-results_see-all-jobs-link&redirect=false&position=1&pageNum=0"
     driver.get(myurl)
 
-
-    time.sleep(8)                           # Wait for the page to load
+    confirm_load("test = driver.find_element_by_xpath('/html/body/main/div/section/ul')", driver)
 
 # This loop (safely) attempts to expand the jobs results list up to 125
-    list_loaded = False
-    while list_loaded == False:
-        if driver.find_element_by_xpath("/html/body/main/div/section/ul") is not None:
-            list_loaded = True
-            try:
-                for i in range(0,5):
-                    button = driver.find_element_by_xpath('/html/body/main/div/section/button')
-                    button.click()
-                    time.sleep(1)
-            except NoSuchElementException:
-                pass
-        else:
-            pass
 
-
+    try:
+        for i in range(0,5):
+            button = driver.find_element_by_xpath('/html/body/main/div/section/button')
+            button.click()
+            time.sleep(1)
+    except NoSuchElementException:
+        pass
 
     unordered_list = driver.find_element_by_xpath("/html/body/main/div/section/ul")     # Quick filtering to find only the list items we're
     list_items = unordered_list.find_elements_by_tag_name("li")                         # Looking for.
 
     push_linkedin_results(list_items, driver)                                           # Push the results; the "smart" implementation for this requires
                                                                                         # handing it the HTML, so don't driver.close() until after.
-
     driver.close()                                                                      # Clean up after ourselves.
 
 #####################################################################################
@@ -219,18 +218,7 @@ def push_linkedin_results(list_items, driver):
 # to be re-initiated.
         full_page_loaded = False
         reload_index = 0
-        while full_page_loaded == False:
-            try:
-                seniority_level =  driver.find_element_by_xpath("/html/body/main/section/div[2]/section[2]/ul/li[1]/span").text
-                full_page_loaded = True
-            except NoSuchElementException:
-                time.sleep(1)
-                reload_index += 1
-                if reload_index >= 5:
-                    print("Re-clicking LinkedIn Job Card After Delay; Possible Error.")
-                    i.click()
-                    reload_index = 0
-                pass
+        confirm_load("seniority_level =  driver.find_element_by_xpath('/html/body/main/section/div[2]/section[2]/ul/li[1]/span').text", driver)
 
 # Grab a bunch of data from i.stuff or driver.stuff for formatting into a line to log
         href = i.find_element_by_class_name("result-card__full-card-link").get_attribute('href')
@@ -241,6 +229,7 @@ def push_linkedin_results(list_items, driver):
         job_function =  driver.find_element_by_xpath("/html/body/main/section/div[2]/section[2]/ul/li[3]/span").text
         job_industry =  driver.find_element_by_xpath("/html/body/main/section/div[2]/section[2]/ul/li[4]/span").text
         employment_type =  driver.find_element_by_xpath("/html/body/main/section/div[2]/section[2]/ul/li[2]/span").text
+        seniority_level =  driver.find_element_by_xpath("/html/body/main/section/div[2]/section[2]/ul/li[1]/span").text
 
 # Format the data, write the line in the logs
         conclusion_list = ("Title: ", job_title, "  Location: ", job_location, "  Employment Type: ", employment_type,
