@@ -6,12 +6,6 @@ import time
 from selenium.common.exceptions import NoSuchElementException
 from selenium.common.exceptions import ElementClickInterceptedException
 
-###INITIALIZE GLOBAL HOLDERS:
-### results: holds all entries which possess the "item-details-link" trait (INCLUDES DUPLICATES)
-### governmentjobs_results: holds all novel entries of 'results'; non-duplicates
-### driver: the driver instance to get URLs
-### myurl: holds the url being accessed (usually job board front-pages)
-
 
 log_file = open("logs/{}".format(time.strftime("%Y-%m-%d, %H-%M")), 'a+') # Create record and open for writing
 
@@ -25,6 +19,9 @@ chrome_driver = "C:/bin/phantomjs/bin/chromedriver.exe"
 ##################################################################################
 ##################################################################################
 ##################################################################################
+
+### Used repeatedly to confirm a page's necessary elements have loaded for accessing
+
 def confirm_load(flagging_string, driver):
     success = False
     while success == False:
@@ -53,23 +50,10 @@ def gj_initialize():
     myurl = "https://www.governmentjobs.com/careers/piercecountywa?"
     driver.get(myurl)
 
-# My Standard Structure for ensuring a page is loaded before being interacted:
-# flag = False
-# While Flag = False : Grab element
-# If element succeeded, Flag = True; else wait and re-try.
-
-
-    confirm_load("test = driver.find_element_by_class_name('pagination')", driver)
-    parent_of_pages = driver.find_element_by_class_name('pagination')
-    children_of_pages = parent_of_pages.find_elements_by_tag_name('a')
-
-# Find the number of pages returned by the job search
-    number_of_pages = 1                             #Front Page doesn't get detected, so initiate with a value of 1
-    for j in children_of_pages:
-        z = len(j.get_attribute('aria-label'))      # <-- This filter returns many results, so we apply a sub-filter:
-        if z < 13 :                                 # The best sub-filter I can find is the length of the value of the aria-label attribute.
-            number_of_pages += 1                    # Ugly, but viable.
-
+    confirm_load("test = driver.find_element_by_class_name('pagination')", driver)      # Load test that pagination is countable
+    pagination_list = driver.find_element_by_xpath('/html/body/div[4]/div[1]/div[1]/div/div[3]/div[1]/div[3]/div[1]/div[1]/ul')
+    number_of_pages = (len(pagination_list.find_elements_by_tag_name("li")) - 2)        # Locate pagination UL, count Li tags,
+                                                                                        # Remove 2 for "Previous" and "Next" buttons
 
     print("Pages found:", number_of_pages)          # Just a reporter line to confirm everything is running correctly
 
@@ -84,8 +68,9 @@ def gj_initialize():
 ### for list item holders with the tag <tr>, then extracts some salient data:
 ### It passes the href for each job post, as well as a dict of [job_title] = when_the_job_was_posted
 ### These are subsequently used to load a page, extract results, and format a report entry.
+
 def gj_grab_pages(number_of_pages):
-    print("Grabbing GJ pages, Number of Pages = ", (number_of_pages))
+
     log_file.write("Government Jobs Results:\n")
     for m in range(1,(number_of_pages)):            # Just use the imported index to loop over governmentjobs pages
 
@@ -93,21 +78,16 @@ def gj_grab_pages(number_of_pages):
         myurl = str("https://www.governmentjobs.com/careers/piercecountywa?page={}").format(m)
         driver.get(myurl)
 
-        confirm_load("test = driver.find_elements_by_tag_name('tr')", driver)
-        elements_of_interest = driver.find_elements_by_tag_name('tr')   # <tr> is best tag for finding the sub-data we want.
-        elements_of_interest.pop(0)                 #The First entry (line with <tr> tag) is the header - Remove it
+        confirm_load("test = driver.find_elements_by_tag_name('tr')", driver)       # Confirm the job results list is loaded
+        elements_of_interest = driver.find_elements_by_tag_name('tr')
+        elements_of_interest.pop(0)                                                 # First tr tag is header - Remove it
 
-        print("Number of posts found: ", len(elements_of_interest))     # Quick report to verify the loop succeeded in locating results
+        print("Number of posts found: ", len(elements_of_interest))                 # Quick verification of results
 
         gj_extract_meaningful_information(elements_of_interest, driver)
 
-        driver.close()                              # As before, we are done with the webpage - close it in case
-                                                    # of "crashing open" in subsequent steps
-
-        # Hand Hrefs list and titles:posted_date dictionary to results processor
-        # Do note these results are "pushed" once per page. This is important for some logic-flow
-        # That happens in other places.
-
+        driver.close()                                                              # As before: close it in case
+                                                                                    # of "crashing open" in subsequent steps
 
 ########################################################################
 
@@ -119,22 +99,25 @@ def gj_grab_pages(number_of_pages):
 ### - Thus the posted_dict.
 
 def gj_extract_meaningful_information(result, driver):
-    try:
+    try:                                                                            # Dismiss the "accept cookies" button if present
         driver.find_element_by_xpath("/html/body/div[4]/div[1]/div[2]/div/button").click()
     except NoSuchElementException:
         pass
 
 
-    for i in result :
-
-        while True:
-            try:
+    for i in result :                                                               # I don't know how to pass i to confirm_load
+        while True:                                                                 # So this check happens locally
+            try:                                                                    # Functionality: open Job's main post in sidebar
                 i.find_element_by_class_name("item-details-link").click()
                 break
             except ElementClickInterceptedException:
                 time.sleep(1)
                 pass
 
+                                                                                    # Confirm side-bar is loaded for element extraction
+        confirm_load("test = driver.find_element_by_xpath('/html/body/div[8]/div/div[1]/div[2]/div/div[1]/div[1]/div[1]/div[2]/div[2]/div').text", driver)
+
+                                                                                    # Extract/Assign attributes for logging
         pay = i.find_element_by_class_name("job-table-salary").text
         job_title = i.find_element_by_class_name("item-details-link").text
         Job_ID = i.find_element_by_class_name("job-table-title").get_attribute("data-job-id")
@@ -145,17 +128,15 @@ def gj_extract_meaningful_information(result, driver):
         posted_date = i.find_element_by_class_name("job-table-posted").text
         href = i.find_element_by_class_name("item-details-link").get_attribute('href')
 
-        confirm_load("test = driver.find_element_by_xpath('/html/body/div[8]/div/div[1]/div[2]/div/div[1]/div[1]/div[1]/div[2]/div[2]/div').text", driver)
-
         location = driver.find_element_by_xpath("/html/body/div[8]/div/div[1]/div[2]/div/div[1]/div[1]/div[1]/div[2]/div[2]/div").text
         job_number = driver.find_element_by_xpath("/html/body/div[8]/div/div[1]/div[2]/div/div[1]/div[1]/div[3]/div/div[2]/div").text
 
-        print(job_title, Job_ID, job_href, pay, department, posted_date, location, Job_number)
-
+                                                                                    # Hit the "X" button to prep for next post
+                                                                                    # This attempt repeats until succeeded
         confirm_load("driver.find_element_by_xpath('/html/body/div[8]/div/div[1]/div[1]/button').click()", driver)
 
 
-         conclusion_list = ("Title: ", job_title, "  ID: ", Job_ID, "  Job Numer: ", job_number, "  Pay: ", pay,
+        conclusion_list = ("Title: ", job_title, "  ID: ", Job_ID, "  Job Numer: ", job_number, "  Pay: ", pay,
                             "  Location: ", location, "  Department: ", department, "  Job Type: ", job_type,
                             "  Posted Date: ", posted_date,  "  Href: ", href, "\n")
         conclusion_string = str.join('', conclusion_list)
